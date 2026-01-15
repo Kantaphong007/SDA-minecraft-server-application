@@ -1,29 +1,22 @@
-version: "3.8"
-
+version: "3"
 services:
-  mc-server:
-    build: . 
-    container_name: my-mc-server
-    image: my-custom-mc:v1
-    
-    ports:
-      - "25565:25565" 
-    
+  minecraft:
+    image: itzg/minecraft-server
+    container_name: mc-server
+    network_mode: "host" 
+
     environment:
-      - EULA=TRUE            
-      - TYPE=PAPER           
-      - VERSION=LATEST       
-      - MEMORY=2G            
-      - ONLINE_MODE=FALSE    
-      - MOTD=DevOps Project Server  
-      
+      EULA: "TRUE"
+      TYPE: "PAPER"
+      VERSION: "1.21.11"
+      MEMORY: "4G"
+      NETWORK_COMPRESSION_THRESHOLD: "64"
+      MAX_TICK_TIME: "-1"    
+      USE_AIKAR_FLAGS: "true"
+      MOTD: "SDA Project Server"
+      ONLINE_MODE: "false"
+
+    restart: unless-stopped
+    
     volumes:
-      - ./data:/data         
-    
-    restart: unless-stopped  
-    
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 4G
+      - ./data:/data

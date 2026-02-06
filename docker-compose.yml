@@ -15,8 +15,11 @@ services:
       USE_AIKAR_FLAGS: "true"
       MOTD: "SDA Project Server"
       ONLINE_MODE: "false"
+      ENABLE_RCON: "true"
+      RCON_PASSWORD: "admin"
+      RCON_PORT: "25575"
 
     restart: unless-stopped
-    
+
     volumes:
       - ./data:/data

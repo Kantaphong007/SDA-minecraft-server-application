@@ -1,0 +1,55 @@
+#!/usr/bin/make -f
+
+# --- Variables ---
+# ดึงค่า IP จาก Terraform แบบ Dynamic
+GET_LB_IP    = $(shell terraform output -raw load_balancer_ip 2>/dev/null)
+CLUSTER_NAME := $(shell gcloud container clusters list --format="value(name)" --limit=1)
+LOC          := $(shell gcloud container clusters list --format="value(location)" --limit=1)
+DEPLOY_NAME  := $(shell kubectl get deployments -o jsonpath='{.items[*].metadata.name}' | tr ' ' '\n' | grep "minecraft" | head -n 1)
+
+.PHONY: help setup deploy stop start status logs
+
+help:
+	@echo "🛠️ Minecraft Manager Tool"
+	@echo "Usage: mc [command]"
+	@echo "Commands: setup, deploy, start, stop, status, logs"
+
+# ติดตั้งคำสั่ง mc ให้เรียกใช้ได้จากทุกที่
+setup:
+	@echo "🔧 กำลังติดตั้งคำสั่ง 'mc'..."
+	@chmod +x $(CURDIR)/minecraft-manager
+	@mkdir -p $(HOME)/.local/bin
+	@ln -sf $(CURDIR)/minecraft-manager $(HOME)/.local/bin/mc
+	@echo "✅ ติดตั้งสำเร็จ! ตอนนี้คุณสามารถใช้คำสั่ง 'mc' ได้เลย"
+
+# 🚀 ดึง IP จาก Terraform และฉีดเข้า YAML ก่อน Deploy
+deploy:
+	@echo "🔍 กำลังดึง Load Balancer IP จาก Terraform..."
+	@if [ -z "$(GET_LB_IP)" ]; then \
+		echo "❌ Error: ไม่พบค่า load_balancer_ip ใน Terraform output!"; \
+		exit 1; \
+	fi
+	@echo "🚀 พบ IP: $(GET_LB_IP) | กำลัง Deploy ไปที่ Kubernetes..."
+	@# ใช้ envsubst เพื่อเปลี่ยน $LB_IP ในไฟล์ YAML ให้เป็นเลข IP จริงๆ โดยไม่กระทบไฟล์ต้นฉบับ
+	@export LB_IP=$(GET_LB_IP) && envsubst < minecraft-k8s.yaml | kubectl apply -f -
+	@echo "✅ Deployment สำเร็จ!"
+
+stop:
+	@echo "🛑 กำลังหยุดเซิร์ฟเวอร์..."
+	@kubectl scale deployment $(DEPLOY_NAME) --replicas=0
+	@echo "✅ ปิดเรียบร้อย (ระบบ Autopilot จะหยุดคิดเงินค่า Compute ให้อัตโนมัติ)"
+
+start:
+	@echo "🚀 กำลังเปิดเซิร์ฟเวอร์..."
+	@kubectl scale deployment $(DEPLOY_NAME) --replicas=1
+	@echo "⏳ รอสถานะ Pod..."
+	@kubectl get pods -w
+
+status:
+	@echo "🌐 Current IP: $(GET_LB_IP)"
+	@echo "📍 Cluster: $(CLUSTER_NAME) ($(LOC))"
+	@echo "--------------------------------------------------"
+	@kubectl get pods,svc
+
+logs:
+	@kubectl logs -f deployment/$(DEPLOY_NAME)

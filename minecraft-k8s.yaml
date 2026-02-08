@@ -7,7 +7,7 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 20Gi # ขนาด Disk 20GB ตามที่คุณตั้งใน Terraform เดิม
+      storage: 20Gi
 ---
 apiVersion: v1
 kind: Service
@@ -15,14 +15,14 @@ metadata:
   name: minecraft-lb
 spec:
   type: LoadBalancer
-  loadBalancerIP: "$LB_IP" 
+  loadBalancerIP: "$LB_IP"
   selector:
     app: minecraft
   ports:
     - protocol: TCP
       port: 25565
       targetPort: 25565
-  externalTrafficPolicy: Local # ช่วยให้เห็น IP ผู้เล่นจริงและ Ping ต่ำ
+  externalTrafficPolicy: Local
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -39,31 +39,47 @@ spec:
         app: minecraft
     spec:
       containers:
-      - name: minecraft
-        image: itzg/minecraft-server:latest
-        ports:
-        - containerPort: 25565
-          name: minecraft
-        env:
-        - name: EULA
-          value: "TRUE"
-        - name: TYPE
-          value: "PAPER" # แนะนำ Paper เพื่อประสิทธิภาพที่ดีบน Cloud
-        - name: MEMORY
-          value: "6G"   # ปรับให้เหมาะสมกับ GKE Autopilot
-        - name: ONLINE_MODE
-          value: "FALSE"
-        resources:
-          requests:
-            memory: "7Gi"
-            cpu: "2"
-          limits:
-            memory: "7Gi"
-            cpu: "2"
-        volumeMounts:
-        - name: minecraft-data
-          mountPath: /data
+        - name: minecraft
+          image: itzg/minecraft-server:latest
+          ports:
+            - containerPort: 25565
+          env:
+            - name: EULA
+              value: "TRUE"
+            - name: TYPE
+              value: "PAPER"
+            - name: MEMORY
+              value: "6G"
+            - name: ONLINE_MODE
+              value: "FALSE"
+
+            # Network / performance
+            - name: NETWORK_COMPRESSION_THRESHOLD
+              value: "64"
+            - name: MAX_TICK_TIME
+              value: "-1"
+            - name: USE_AIKAR_FLAGS
+              value: "true"
+
+            # RCON (ใช้สำหรับ save-all flush ก่อน snapshot)
+            - name: ENABLE_RCON
+              value: "true"
+            - name: RCON_PASSWORD
+              value: "admin"
+            - name: RCON_PORT
+              value: "25575"
+
+          resources:
+            requests:
+              memory: "7Gi"
+              cpu: "2"
+            limits:
+              memory: "7Gi"
+              cpu: "2"
+          volumeMounts:
+            - name: minecraft-data
+              mountPath: /data
       volumes:
-      - name: minecraft-data
-        persistentVolumeClaim:
-          claimName: minecraft-pvc
+        - name: minecraft-data
+          persistentVolumeClaim:
+            claimName: minecraft-pvc

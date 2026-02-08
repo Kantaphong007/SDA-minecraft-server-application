@@ -53,3 +53,6 @@ status:
 
 logs:
 	@kubectl logs -f deployment/$(DEPLOY_NAME)
+
+flush:
+	kubectl exec deployment/$(DEPLOY_NAME) -- rcon-cli save-all flush

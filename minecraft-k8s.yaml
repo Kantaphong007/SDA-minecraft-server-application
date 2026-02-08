@@ -1,0 +1,69 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: minecraft-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi # ขนาด Disk 20GB ตามที่คุณตั้งใน Terraform เดิม
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minecraft-lb
+spec:
+  type: LoadBalancer
+  loadBalancerIP: "$LB_IP" 
+  selector:
+    app: minecraft
+  ports:
+    - protocol: TCP
+      port: 25565
+      targetPort: 25565
+  externalTrafficPolicy: Local # ช่วยให้เห็น IP ผู้เล่นจริงและ Ping ต่ำ
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minecraft-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minecraft
+  template:
+    metadata:
+      labels:
+        app: minecraft
+    spec:
+      containers:
+      - name: minecraft
+        image: itzg/minecraft-server:latest
+        ports:
+        - containerPort: 25565
+          name: minecraft
+        env:
+        - name: EULA
+          value: "TRUE"
+        - name: TYPE
+          value: "PAPER" # แนะนำ Paper เพื่อประสิทธิภาพที่ดีบน Cloud
+        - name: MEMORY
+          value: "6G"   # ปรับให้เหมาะสมกับ GKE Autopilot
+        - name: ONLINE_MODE
+          value: "FALSE"
+        resources:
+          requests:
+            memory: "7Gi"
+            cpu: "2"
+          limits:
+            memory: "7Gi"
+            cpu: "2"
+        volumeMounts:
+        - name: minecraft-data
+          mountPath: /data
+      volumes:
+      - name: minecraft-data
+        persistentVolumeClaim:
+          claimName: minecraft-pvc

@@ -5,7 +5,7 @@ APP_DIR="/home/ubuntu/project"
 DATA_DIR="${APP_DIR}/data"
 PROJECT_ID="$(curl -s -H "Metadata-Flavor: Google" \
   http://metadata.google.internal/computeMetadata/v1/project/project-id)"
-BUCKET_NAME="gs://${PROJECT_ID}-mc-backups"
+BUCKET="gs://${PROJECT_ID}-mc-backups"
 
 TS="$(date -u +%Y%m%dT%H%M%SZ)"
 OUT="/tmp/mc-data-${TS}.tar.gz"
